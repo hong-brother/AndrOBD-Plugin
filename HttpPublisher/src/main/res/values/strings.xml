@@ -1,0 +1,26 @@
+<resources>
+    <string name="app_name" translatable="false">AndrOBD HttpPublisher</string>
+    <string name="settings">Plugin Settings</string>
+    <string name="http_settings">HTTP settings</string>
+    <string-array name="http_protocol">
+        <item>@string/http_protocol_http</item>
+        <item>@string/http_protocol_https</item>
+    </string-array>
+    <string name="http_protocol_http" translatable="false">http://</string>
+    <string name="http_protocol_https" translatable="false">https://</string>
+    <string name="http_protocol_sum">https or http</string>
+    <string name="http_hostname">HTTP host name</string>
+    <string name="http_hostname_sum">HTTP broker host name / IP address</string>
+    <string name="http_path">path</string>
+    <string name="http_path_sum">http path</string>
+    <string name="ip_port">IP port</string>
+    <string name="ip_port_sum">Http IP port number</string>
+    <string name="http_token">Http Token</string>
+    <string name="http_token_sum">Http authorization Token</string>
+
+    <string name="plugin_settings">Plugin settings</string>
+    <string name="batch_size">batch size</string>
+    <string name="batch_size_sum">batch data size</string>
+    <string name="period">period</string>
+    <string name="period_sum">period</string>
+</resources>

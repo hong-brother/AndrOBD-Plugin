@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+                  android:icon="@android:drawable/ic_menu_manage"
+                  android:title="@string/settings">
+    <Preference
+        android:title="@string/app_name"
+        android:summary="@string/app_version" />
+
+    <PreferenceCategory
+        android:title="@string/plugin_settings">
+
+        <EditTextPreference
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:defaultValue="0"
+            android:key="batch_size"
+            android:summary="@string/batch_size_sum"
+            android:title="@string/batch_size" />
+        <EditTextPreference
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:defaultValue="0"
+            android:key="period"
+            android:summary="@string/period_sum"
+            android:title="@string/period" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:title="@string/http_settings">
+
+        <ListPreference
+            android:defaultValue="@string/http_protocol_https"
+            android:entries="@array/http_protocol"
+            android:entryValues="@array/http_protocol"
+            android:key="http_protocol"
+            android:summary="@string/http_protocol_sum"
+            android:title="@string/http_settings" />
+
+        <EditTextPreference
+            android:defaultValue="localhost"
+            android:key="http_hostname"
+            android:summary="@string/http_hostname_sum"
+            android:title="@string/http_hostname" />
+
+        <EditTextPreference
+            android:defaultValue="80"
+            android:inputType="numberDecimal"
+            android:key="ip_port"
+            android:summary="@string/ip_port_sum"
+            android:title="@string/ip_port" />
+
+        <EditTextPreference
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:defaultValue="80"
+            android:inputType="numberDecimal"
+            android:key="http_path"
+            android:summary="@string/http_path"
+            android:title="@string/http_path" />
+        <EditTextPreference
+            android:key="http_token"
+            android:summary="@string/http_token_sum"
+            android:title="@string/http_token" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>
