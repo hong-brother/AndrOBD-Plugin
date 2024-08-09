@@ -1,7 +1,14 @@
 package com.fr3ts0n.androbd.plugin.http;
 
+import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import android.os.Build;
 import android.preference.PreferenceManager;
 import android.util.Log;
 
@@ -19,10 +26,13 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 
 public class HttpPlugin
         extends Plugin
-        implements Plugin.ConfigurationHandler,
+        implements
+        LocationListener,
+        Plugin.ConfigurationHandler,
         Plugin.ActionHandler,
         Plugin.DataReceiver,
         SharedPreferences.OnSharedPreferenceChangeListener {
@@ -33,6 +43,8 @@ public class HttpPlugin
             "GPLV3+",
             "https://github.com/fr3ts0n/AndrOBD-Plugin"
     );
+
+    LocationManager locationManager;
 
     /**
      * Preference keys
@@ -56,7 +68,7 @@ public class HttpPlugin
     String token;
     //
     Integer batchSize = 1;
-    Integer period = 1;
+    Integer period = 5;
 
     //
     HashSet<String> mSelectedItems = new HashSet<>();
@@ -83,7 +95,7 @@ public class HttpPlugin
             {
                 while (!interrupted())
                 {
-                    sleep(period * 100);
+                    sleep(period * 10000);
                     Log.i("Http", "Thread - Http Publish data");
                     performAction();
                 }
@@ -96,10 +108,11 @@ public class HttpPlugin
         }
     };
 
+
+
     @Override
     public void onCreate() {
         {
-            Log.i("HTTP", "onCreate");
             super.onCreate();
             // get preferences
             prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
@@ -107,8 +120,40 @@ public class HttpPlugin
             // get all shared preference values
             onSharedPreferenceChanged(prefs, null);
 
-            // 인증 권한 추가
+            // GPS
+            locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+            // check permissions
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+            {
+                if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) !=
+                        PackageManager.PERMISSION_GRANTED &&
+                        checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) !=
+                                PackageManager.PERMISSION_GRANTED)
+                {
+                    Log.e(getPackageName(), "Location permissions missing");
+                    return;
+                }
+            }
+            // Register the listener with the Location Manager to receive location updates
+            try
+            {
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
+            }
+            catch (Exception ex)
+            {
+                Log.e(getPackageName(), ex.toString());
+            }
+            try
+            {
+                locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, this);
+            }
+            catch (Exception ex)
+            {
+                Log.e(getPackageName(), ex.toString());
+            }
+            //
 
+            // 인증 권한 추가
             updateThread.start();
         }
     }
@@ -116,19 +161,19 @@ public class HttpPlugin
     @Override
     public void onDestroy()
     {
-        Log.i("HTTP", "onDestroy");
         // interrupt cyclic thread
         updateThread.interrupt();
 
         // forget about settings changes
         prefs.unregisterOnSharedPreferenceChangeListener(this);
 
+        // GPS
+        locationManager.removeUpdates(this);
         super.onDestroy();
     }
 
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
-        Log.i("HTTP", "onSharedPreferenceChanged");
         if (key == null || HTTP_PROTOCOL.equals(key)) {
             protocol = sharedPreferences.getString(HTTP_PROTOCOL,getString(R.string.http_protocol_https));
         }
@@ -181,19 +226,47 @@ public class HttpPlugin
 
     @Override
     public void performAction() {
-        Log.i("HTTP", "performAction");
         final String http = protocol + hostname + ":" + port + path;
         Log.i("HTTP", "Connect: " + http);
         String http_test = "https://yvzguxmx8f.execute-api.ap-northeast-2.amazonaws.com/";
         Log.i("HTTP", "Connect: " + http_test);
-        Log.i("HTTP", "data = " + valueMap);
 
+        // Attempt to get fine GPS location ...
+        // check permissions
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+        {
+            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) !=
+                    PackageManager.PERMISSION_GRANTED &&
+                    checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) !=
+                            PackageManager.PERMISSION_GRANTED)
+            {
+                Log.e(getPackageName(), "Location permissions missing");
+                return;
+            }
+        }
+        Location loc = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+
+        // If no fine location is available ...
+        if (loc == null)
+        {
+            // Attempt to get coarse network location
+            loc = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+        }
+
+        Location finalLoc = loc;;
         new Thread(()->{
             CloseableHttpClient httpClient = HttpClientBuilder.create().build();
 
             try {
+                Log.i("HTTP", "GPS" + finalLoc.toString());
                 HttpPost httpPost = new HttpPost("https://yvzguxmx8f.execute-api.ap-northeast-2.amazonaws.com/obd-data");
+                valueMap.put("GPS_LATITUDE", String.valueOf(finalLoc.getLatitude()));
+                valueMap.put("GPS_LONGITUDE", String.valueOf(finalLoc.getLongitude()));
+                valueMap.put("GPS_ALTITUDE", String.valueOf(finalLoc.getAltitude()));
+                valueMap.put("GPS_BEARING", String.valueOf(finalLoc.getBearing()));
+                valueMap.put("GPS_SPEED", String.valueOf(finalLoc.getSpeed()));
                 JSONObject jsonObject = new JSONObject(valueMap);
+                Log.i("HTTP", "DATA = " + valueMap);
                 httpPost.setEntity(new StringEntity(String.valueOf(jsonObject), ContentType.APPLICATION_JSON));
                 httpClient.execute(httpPost,
                         response -> {
@@ -209,7 +282,6 @@ public class HttpPlugin
 
     @Override
     public void performConfigure() {
-        Log.i("HTTP", "performConfigure");
         Intent cfgIntent = new Intent(getApplicationContext(), SettingsActivity.class);
         cfgIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(cfgIntent);
@@ -243,7 +315,6 @@ public class HttpPlugin
 
     @Override
     public void onDataUpdate(String key, String value) {
-        Log.i("HTTP", "onDataUpdate");
         synchronized (valueMap)
         {
             // add value if it is to be published ...
@@ -252,6 +323,25 @@ public class HttpPlugin
                 valueMap.put(key, value);
             }
         }
+    }
 
+    @Override
+    public void onLocationChanged(Location location) {
+
+    }
+
+    @Override
+    public void onLocationChanged(List<Location> locations) {
+        LocationListener.super.onLocationChanged(locations);
+    }
+
+    @Override
+    public void onProviderEnabled(String provider) {
+        LocationListener.super.onProviderEnabled(provider);
+    }
+
+    @Override
+    public void onProviderDisabled(String provider) {
+        LocationListener.super.onProviderDisabled(provider);
     }
 }
