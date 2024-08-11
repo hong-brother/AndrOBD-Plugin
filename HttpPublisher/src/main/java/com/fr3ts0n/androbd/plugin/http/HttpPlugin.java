@@ -1,5 +1,7 @@
 package com.fr3ts0n.androbd.plugin.http;
 
+import static java.lang.Thread.sleep;
+
 import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
@@ -15,18 +17,29 @@ import android.util.Log;
 import com.fr3ts0n.androbd.plugin.Plugin;
 import com.fr3ts0n.androbd.plugin.PluginInfo;
 
+import org.apache.hc.client5.http.async.methods.SimpleHttpRequest;
+import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
+import org.apache.hc.client5.http.async.methods.SimpleRequestBuilder;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
+import org.apache.hc.client5.http.impl.async.HttpAsyncClients;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.core5.concurrent.FutureCallback;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.io.entity.StringEntity;
+import org.apache.hc.core5.http2.HttpVersionPolicy;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.Future;
 
 public class HttpPlugin
         extends Plugin
@@ -95,7 +108,7 @@ public class HttpPlugin
             {
                 while (!interrupted())
                 {
-                    sleep(period * 10000);
+                    sleep(5000);
                     Log.i("Http", "Thread - Http Publish data");
                     performAction();
                 }
@@ -228,6 +241,12 @@ public class HttpPlugin
     public void performAction() {
         final String http = protocol + hostname + ":" + port + path;
         Log.i("HTTP", "Connect: " + http);
+//        try {
+//            sleep(1000);
+//        } catch (Exception e) {
+//            Log.i("HTTP", "ERROR = " + e.getMessage());
+//        }
+
         String http_test = "https://yvzguxmx8f.execute-api.ap-northeast-2.amazonaws.com/";
         Log.i("HTTP", "Connect: " + http_test);
 
@@ -254,25 +273,63 @@ public class HttpPlugin
         }
 
         Location finalLoc = loc;;
+
+        valueMap.put("GPS_LATITUDE", String.valueOf(finalLoc.getLatitude()));
+        valueMap.put("GPS_LONGITUDE", String.valueOf(finalLoc.getLongitude()));
+        valueMap.put("GPS_ALTITUDE", String.valueOf(finalLoc.getAltitude()));
+        valueMap.put("GPS_BEARING", String.valueOf(finalLoc.getBearing()));
+        valueMap.put("GPS_SPEED", String.valueOf(finalLoc.getSpeed()));
+        Log.i("HTTP", "DATA = " + valueMap);
+        //
+        valueMap.clear();
+        long now = System.currentTimeMillis();
+        Date currentTime = new Date(now);
+        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");	// 09:35
+        Log.i("HTTP", "SEND DATE = " + dateFormat.format(currentTime));
+        valueMap.put("send_data", dateFormat.format(currentTime));
+        JSONObject jsonObject = new JSONObject(valueMap);
+
         new Thread(()->{
-            CloseableHttpClient httpClient = HttpClientBuilder.create().build();
 
             try {
-                Log.i("HTTP", "GPS" + finalLoc.toString());
+                CloseableHttpClient httpClient = HttpClientBuilder.create().build();
                 HttpPost httpPost = new HttpPost("https://yvzguxmx8f.execute-api.ap-northeast-2.amazonaws.com/obd-data");
-                valueMap.put("GPS_LATITUDE", String.valueOf(finalLoc.getLatitude()));
-                valueMap.put("GPS_LONGITUDE", String.valueOf(finalLoc.getLongitude()));
-                valueMap.put("GPS_ALTITUDE", String.valueOf(finalLoc.getAltitude()));
-                valueMap.put("GPS_BEARING", String.valueOf(finalLoc.getBearing()));
-                valueMap.put("GPS_SPEED", String.valueOf(finalLoc.getSpeed()));
-                JSONObject jsonObject = new JSONObject(valueMap);
-                Log.i("HTTP", "DATA = " + valueMap);
                 httpPost.setEntity(new StringEntity(String.valueOf(jsonObject), ContentType.APPLICATION_JSON));
                 httpClient.execute(httpPost,
                         response -> {
                             Log.i("HTTP", "resonse: " + response.toString());
                             return null;
                         });
+
+//                CloseableHttpAsyncClient httpClient = HttpAsyncClients.createDefault();
+//
+//                httpClient.start();
+//                Log.i("HTTP", "GPS" + finalLoc.toString());
+//                SimpleHttpRequest httpPost = SimpleRequestBuilder.post("https://yvzguxmx8f.execute-api.ap-northeast-2.amazonaws.com/obd-data")
+//                        .setBody(String.valueOf(jsonObject), ContentType.APPLICATION_JSON).build();
+//
+//                Future<SimpleHttpResponse> future = httpClient.execute(httpPost, new FutureCallback<SimpleHttpResponse>() {
+//                            @Override
+//                            public void completed(SimpleHttpResponse result) {
+//                                // 응답 수신을 완료했을 때의 동작
+//                                Log.i("HTTP", "http completed = " + result.toString());
+//                            }
+//
+//                            @Override
+//                            public void failed(Exception ex) {
+//                                // 요청을 보내는데 실패했을 때의 동작
+//                                Log.i("HTTP", "http failed = " + ex.getMessage());
+//                            }
+//
+//                            @Override
+//                            public void cancelled() {
+//                                // 요청이 취소되었을 때의 동작
+//                                Log.i("HTTP", "http cancelled");
+//                            }
+//                        });
+//
+//
+//                httpClient.close();
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
